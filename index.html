@@ -1,870 +1,1530 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ReportlyAI — Client Reports in 60 Seconds</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<title>ReportlyAI — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
 :root{
-  --black:#080808;
-  --surface:#111111;
-  --surface2:#181818;
-  --gold:#C9A84C;
-  --gold2:#E8C96A;
-  --gold-dim:#7a6330;
-  --text:#F0EDE6;
-  --text2:#9A9488;
-  --text3:#5a5650;
-  --green:#4CAF82;
-  --border:rgba(201,168,76,0.15);
-  --border2:rgba(255,255,255,0.06);
-  --radius:12px;
-  --glow:0 0 40px rgba(201,168,76,0.12);
+  --black:#080808;--surface:#111;--surface2:#181818;--surface3:#1e1e1e;
+  --gold:#C9A84C;--gold2:#E8C96A;--gold-dim:rgba(201,168,76,0.15);
+  --text:#F0EDE6;--text2:#9A9488;--text3:#5a5650;
+  --green:#4CAF82;--red:#E05252;
+  --border:rgba(201,168,76,0.15);--border2:rgba(255,255,255,0.07);
+  --radius:10px;--sidebar:240px;
 }
+html,body{height:100%;background:var(--black);color:var(--text);font-family:'DM Sans',sans-serif;overflow-x:hidden}
+button{cursor:pointer;font-family:'DM Sans',sans-serif}
+input,select,textarea{font-family:'DM Sans',sans-serif}
+a{color:inherit;text-decoration:none}
 
-html{scroll-behavior:smooth}
-body{
-  background:var(--black);
-  color:var(--text);
-  font-family:'DM Sans',sans-serif;
-  overflow-x:hidden;
-  cursor:none;
+/* ── TOAST ── */
+#toast-container{position:fixed;top:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px}
+.toast{
+  padding:14px 20px;border-radius:8px;font-size:14px;font-weight:500;
+  min-width:260px;max-width:360px;
+  animation:toastIn 0.3s ease;
+  display:flex;align-items:center;gap:10px;
 }
+.toast.success{background:#1a2a20;border:1px solid rgba(76,175,130,0.3);color:#4CAF82}
+.toast.error{background:#2a1a1a;border:1px solid rgba(224,82,82,0.3);color:#E05252}
+.toast.info{background:#1a1a2a;border:1px solid var(--border);color:var(--gold)}
+@keyframes toastIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
 
-/* Custom cursor */
-.cursor{
-  position:fixed;width:10px;height:10px;background:var(--gold);border-radius:50%;
-  pointer-events:none;z-index:9999;transform:translate(-50%,-50%);
-  transition:transform 0.1s,width 0.3s,height 0.3s,opacity 0.3s;
-  mix-blend-mode:difference;
-}
-.cursor-ring{
-  position:fixed;width:36px;height:36px;border:1px solid rgba(201,168,76,0.5);
-  border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);
-  transition:transform 0.15s ease-out,width 0.3s,height 0.3s,opacity 0.3s;
-}
+/* ── SCREENS ── */
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex}
 
-/* Canvas 3D BG */
-#bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;opacity:0.6}
-
-/* Noise overlay */
-body::before{
-  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events:none;z-index:1;opacity:0.4;
-}
-
-/* Layout */
-main{position:relative;z-index:2}
-
-/* NAV */
-nav{
-  position:fixed;top:0;left:0;right:0;z-index:100;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:24px 60px;
-  background:linear-gradient(to bottom,rgba(8,8,8,0.9),transparent);
-  backdrop-filter:blur(0px);
-  transition:backdrop-filter 0.3s,background 0.3s;
-}
-nav.scrolled{
-  backdrop-filter:blur(20px);
-  background:rgba(8,8,8,0.8);
-  border-bottom:1px solid var(--border2);
-}
-.nav-logo{
-  font-family:'Cormorant Garamond',serif;
-  font-size:22px;font-weight:600;color:var(--text);
-  letter-spacing:0.02em;
-}
-.nav-logo span{color:var(--gold)}
-.nav-links{display:flex;gap:36px;list-style:none}
-.nav-links a{
-  color:var(--text2);font-size:14px;text-decoration:none;
-  transition:color 0.2s;letter-spacing:0.04em;
-}
-.nav-links a:hover{color:var(--text)}
-.nav-cta{
-  background:var(--gold);color:#000;
-  padding:10px 24px;border-radius:6px;font-size:14px;
-  font-weight:600;text-decoration:none;letter-spacing:0.04em;
-  transition:background 0.2s,transform 0.2s;
-}
-.nav-cta:hover{background:var(--gold2);transform:translateY(-1px)}
-
-/* HERO */
-.hero{
-  min-height:100vh;display:flex;flex-direction:column;
+/* ── AUTH SCREENS ── */
+#screen-login,#screen-register{
   align-items:center;justify-content:center;
-  padding:120px 60px 80px;text-align:center;
-  position:relative;
+  background:radial-gradient(ellipse 80% 60% at 50% 20%,rgba(201,168,76,0.05),transparent);
 }
-.hero-badge{
-  display:inline-flex;align-items:center;gap:8px;
-  border:1px solid var(--border);border-radius:100px;
-  padding:7px 18px;margin-bottom:32px;
-  font-size:12px;color:var(--gold);letter-spacing:0.1em;text-transform:uppercase;
-  background:rgba(201,168,76,0.05);
-  animation:fadeUp 0.8s ease both;
+.auth-box{
+  width:100%;max-width:420px;padding:52px 48px;
+  background:var(--surface);border:1px solid var(--border2);border-radius:16px;
+  box-shadow:0 40px 80px rgba(0,0,0,0.5);
 }
-.hero-badge .dot{width:6px;height:6px;background:var(--gold);border-radius:50%;animation:pulse 2s infinite}
+.auth-logo{
+  font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;
+  margin-bottom:32px;text-align:center;
+}
+.auth-logo span{color:var(--gold)}
+.auth-title{font-size:20px;font-weight:600;margin-bottom:6px;text-align:center}
+.auth-sub{font-size:14px;color:var(--text2);text-align:center;margin-bottom:32px}
+.form-group{margin-bottom:18px}
+.form-label{display:block;font-size:12px;color:var(--text2);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px}
+.form-input{
+  width:100%;background:var(--surface2);border:1px solid var(--border2);
+  color:var(--text);border-radius:8px;padding:13px 16px;font-size:14px;
+  transition:border-color 0.2s;outline:none;
+}
+.form-input:focus{border-color:var(--gold)}
+.form-input::placeholder{color:var(--text3)}
+.btn-auth{
+  width:100%;background:var(--gold);color:#000;padding:14px;border-radius:8px;
+  font-size:15px;font-weight:600;border:none;letter-spacing:0.04em;
+  transition:all 0.2s;margin-top:8px;
+}
+.btn-auth:hover{background:var(--gold2)}
+.auth-switch{text-align:center;margin-top:24px;font-size:13px;color:var(--text2)}
+.auth-switch a{color:var(--gold);cursor:pointer}
+.auth-switch a:hover{text-decoration:underline}
+.form-error{font-size:12px;color:var(--red);margin-top:6px}
 
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
+/* ── APP SHELL ── */
+#screen-app{flex-direction:row}
 
-.hero h1{
-  font-family:'Cormorant Garamond',serif;
-  font-size:clamp(52px,7vw,96px);
-  font-weight:600;line-height:1.05;
-  letter-spacing:-0.02em;
-  max-width:900px;
-  animation:fadeUp 0.8s 0.1s ease both;
+/* SIDEBAR */
+.sidebar{
+  width:var(--sidebar);min-height:100vh;background:var(--surface);
+  border-right:1px solid var(--border2);display:flex;flex-direction:column;
+  flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;
 }
-.hero h1 em{color:var(--gold);font-style:italic}
-.hero h1 .line2{display:block;color:var(--text2);font-weight:400}
-
-.hero-sub{
-  margin-top:28px;font-size:18px;color:var(--text2);
-  max-width:520px;line-height:1.7;font-weight:300;
-  animation:fadeUp 0.8s 0.2s ease both;
-}
-
-.hero-actions{
-  display:flex;gap:16px;margin-top:44px;
-  animation:fadeUp 0.8s 0.3s ease both;
-}
-.btn-primary{
-  background:var(--gold);color:#000;padding:16px 40px;
-  border-radius:8px;font-size:15px;font-weight:600;
-  text-decoration:none;letter-spacing:0.04em;
-  transition:all 0.2s;border:none;cursor:none;
-  position:relative;overflow:hidden;
-}
-.btn-primary::after{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(255,255,255,0.2),transparent);
-  opacity:0;transition:opacity 0.2s;
-}
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(201,168,76,0.3)}
-.btn-primary:hover::after{opacity:1}
-.btn-ghost{
-  border:1px solid var(--border);color:var(--text);padding:16px 32px;
-  border-radius:8px;font-size:15px;text-decoration:none;letter-spacing:0.04em;
-  transition:all 0.2s;cursor:none;
-}
-.btn-ghost:hover{border-color:var(--gold-dim);color:var(--gold)}
-
-/* STATS BAR */
-.stats-bar{
-  display:flex;gap:0;border:1px solid var(--border2);border-radius:12px;
-  margin-top:80px;overflow:hidden;
-  animation:fadeUp 0.8s 0.4s ease both;
-  width:100%;max-width:720px;
-}
-.stat-item{
-  flex:1;padding:24px 28px;text-align:center;
-  border-right:1px solid var(--border2);position:relative;
-}
-.stat-item:last-child{border-right:none}
-.stat-number{
-  font-family:'Cormorant Garamond',serif;
-  font-size:36px;font-weight:700;color:var(--gold);
-  display:block;
-}
-.stat-label{font-size:12px;color:var(--text2);letter-spacing:0.06em;text-transform:uppercase;margin-top:4px}
-
-/* MOCKUP SECTION */
-.mockup-section{
-  padding:80px 60px 120px;
-  display:flex;justify-content:center;
-}
-.report-mockup{
-  width:100%;max-width:880px;
-  background:var(--surface);
-  border:1px solid var(--border2);border-radius:16px;
-  overflow:hidden;
-  box-shadow:var(--glow),0 40px 120px rgba(0,0,0,0.5);
-  animation:float 6s ease-in-out infinite;
-}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-
-.mockup-header{
-  background:var(--surface2);padding:16px 24px;
-  display:flex;align-items:center;gap:12px;
+.sidebar-logo{
+  padding:28px 24px 20px;
+  font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;
   border-bottom:1px solid var(--border2);
 }
-.mockup-dots{display:flex;gap:7px}
-.mockup-dots span{width:10px;height:10px;border-radius:50%;display:block}
-.mockup-dots span:nth-child(1){background:#E05252}
-.mockup-dots span:nth-child(2){background:#E0B252}
-.mockup-dots span:nth-child(3){background:#4CAF82}
-.mockup-title{font-size:13px;color:var(--text2);margin-left:8px;letter-spacing:0.04em}
-
-.mockup-body{padding:40px 48px}
-.report-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px}
-.report-agency{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em}
-.report-client{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:600;margin-top:6px}
-.report-period{font-size:13px;color:var(--text2);margin-top:4px}
-.report-badge{
-  background:rgba(76,175,130,0.12);border:1px solid rgba(76,175,130,0.25);
-  color:var(--green);padding:6px 14px;border-radius:100px;font-size:12px;font-weight:500;
+.sidebar-logo span{color:var(--gold)}
+.sidebar-nav{padding:16px 12px;flex:1}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-radius:8px;font-size:14px;color:var(--text2);
+  transition:all 0.15s;margin-bottom:2px;cursor:pointer;
+  border:none;background:none;width:100%;text-align:left;
 }
-
-.ai-summary{
-  background:rgba(201,168,76,0.04);border:1px solid var(--border);
-  border-radius:10px;padding:24px;margin-bottom:32px;
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--gold-dim);color:var(--gold)}
+.nav-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-bottom{padding:16px 12px;border-top:1px solid var(--border2)}
+.plan-badge{
+  background:var(--gold-dim);border:1px solid var(--border);
+  border-radius:8px;padding:12px 14px;margin-bottom:12px;
 }
-.ai-label{font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.ai-label::before{content:'✦';font-size:8px}
+.plan-badge-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em}
+.plan-badge-name{font-size:14px;font-weight:600;color:var(--gold);margin:2px 0}
+.plan-badge-usage{font-size:12px;color:var(--text2)}
+.plan-progress{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:8px;overflow:hidden}
+.plan-progress-fill{height:100%;background:var(--gold);border-radius:2px;transition:width 0.5s}
+.btn-upgrade{
+  width:100%;background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#000;padding:11px;border-radius:8px;font-size:13px;font-weight:600;
+  border:none;letter-spacing:0.04em;margin-bottom:8px;
+}
+.btn-upgrade:hover{opacity:0.9}
+.btn-logout{
+  width:100%;background:none;border:1px solid var(--border2);
+  color:var(--text2);padding:10px;border-radius:8px;font-size:13px;
+  transition:all 0.2s;
+}
+.btn-logout:hover{border-color:var(--red);color:var(--red)}
+
+/* MAIN CONTENT */
+.main-content{flex:1;overflow-y:auto;min-height:100vh}
+.page-view{display:none;padding:40px 48px;animation:fadeIn 0.3s ease}
+.page-view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:36px}
+.page-title{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:600}
+.page-sub{font-size:14px;color:var(--text2);margin-top:4px}
+
+/* ── DASHBOARD ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:24px;
+}
+.stat-card-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+.stat-card-value{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:700;color:var(--text)}
+.stat-card-sub{font-size:12px;color:var(--text2);margin-top:4px}
+.stat-card.gold .stat-card-value{color:var(--gold)}
+
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.section-title2{font-size:16px;font-weight:600}
+.btn-sm{
+  padding:8px 18px;border-radius:6px;font-size:13px;font-weight:500;
+  border:none;transition:all 0.2s;
+}
+.btn-sm.gold{background:var(--gold);color:#000}
+.btn-sm.gold:hover{background:var(--gold2)}
+.btn-sm.outline{border:1px solid var(--border2);background:none;color:var(--text2)}
+.btn-sm.outline:hover{border-color:var(--gold-dim);color:var(--text)}
+.btn-sm.danger{border:1px solid rgba(224,82,82,0.3);background:none;color:var(--red)}
+.btn-sm.danger:hover{background:rgba(224,82,82,0.08)}
+
+.report-list{display:flex;flex-direction:column;gap:12px}
+.report-card{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:20px 24px;
+  display:flex;align-items:center;gap:16px;
+  transition:border-color 0.2s;cursor:pointer;
+}
+.report-card:hover{border-color:rgba(201,168,76,0.25)}
+.report-card-icon{
+  width:44px;height:44px;background:var(--gold-dim);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;
+}
+.report-card-info{flex:1}
+.report-card-client{font-size:15px;font-weight:600}
+.report-card-period{font-size:13px;color:var(--text2);margin-top:2px}
+.report-card-status{
+  font-size:11px;padding:3px 10px;border-radius:100px;font-weight:500;
+}
+.status-ready{background:rgba(76,175,130,0.12);color:var(--green)}
+.status-sent{background:rgba(100,150,255,0.12);color:#6496FF}
+.status-generating{background:rgba(201,168,76,0.12);color:var(--gold)}
+.status-failed{background:rgba(224,82,82,0.12);color:var(--red)}
+.report-card-actions{display:flex;gap:8px}
+
+.empty-state{
+  text-align:center;padding:80px 40px;
+  border:1px dashed var(--border2);border-radius:var(--radius);
+}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:0.4}
+.empty-title{font-size:18px;font-weight:600;margin-bottom:8px}
+.empty-sub{font-size:14px;color:var(--text2);margin-bottom:24px}
+
+/* ── WIZARD ── */
+.wizard-steps{display:flex;gap:0;margin-bottom:40px}
+.wizard-step{
+  flex:1;padding:14px 16px;border-bottom:2px solid var(--border2);
+  font-size:13px;color:var(--text3);text-align:center;transition:all 0.2s;
+}
+.wizard-step.active{border-bottom-color:var(--gold);color:var(--gold)}
+.wizard-step.done{border-bottom-color:var(--green);color:var(--green)}
+.wizard-step-num{display:block;font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;line-height:1;margin-bottom:2px}
+
+.wizard-pane{display:none}
+.wizard-pane.active{display:block}
+
+.platform-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px}
+.platform-toggle{
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:18px;text-align:center;
+  cursor:pointer;transition:all 0.2s;user-select:none;
+}
+.platform-toggle:hover{border-color:rgba(201,168,76,0.3)}
+.platform-toggle.selected{border-color:var(--gold);background:var(--gold-dim)}
+.platform-toggle-icon{font-size:24px;display:block;margin-bottom:6px}
+.platform-toggle-name{font-size:13px;font-weight:500}
+
+.platform-fields{display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:24px;margin-bottom:16px}
+.platform-fields.visible{display:block}
+.platform-fields-header{font-size:14px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.wizard-nav{display:flex;justify-content:space-between;align-items:center;margin-top:32px;padding-top:24px;border-top:1px solid var(--border2)}
+.btn-wizard{padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;border:none;transition:all 0.2s}
+.btn-wizard.primary{background:var(--gold);color:#000}
+.btn-wizard.primary:hover{background:var(--gold2)}
+.btn-wizard.secondary{border:1px solid var(--border2);background:none;color:var(--text2)}
+.btn-wizard.secondary:hover{border-color:var(--gold-dim);color:var(--text)}
+
+/* ── REPORT VIEW ── */
+.report-view-header{
+  background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);
+  padding:28px 32px;margin-bottom:24px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.report-view-client{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600}
+.report-view-meta{font-size:13px;color:var(--text2);margin-top:4px}
+.grade-pill{
+  width:56px;height:56px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;
+}
+.grade-A\+,.grade-A{background:rgba(76,175,130,0.12);border:1px solid rgba(76,175,130,0.3);color:var(--green)}
+.grade-B\+,.grade-B{background:var(--gold-dim);border:1px solid var(--border);color:var(--gold)}
+.grade-C,.grade-needs{background:rgba(224,82,82,0.12);border:1px solid rgba(224,82,82,0.3);color:var(--red)}
+
+.ai-summary-box{
+  background:var(--gold-dim);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;margin-bottom:20px;
+}
+.ai-summary-label{font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.ai-summary-label::before{content:'✦';font-size:8px}
+.ai-headline{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;margin-bottom:8px}
 .ai-text{font-size:14px;color:var(--text2);line-height:1.7}
-.ai-text strong{color:var(--text)}
 
-.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
-.metric-card{
-  background:var(--surface2);border:1px solid var(--border2);
-  border-radius:10px;padding:20px;
-}
-.metric-platform{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
-.metric-value{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--text)}
-.metric-change{font-size:12px;color:var(--green);margin-top:4px}
-.metric-change.down{color:#E05252}
-
-.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.chart-box{
-  background:var(--surface2);border:1px solid var(--border2);
-  border-radius:10px;padding:24px;
-}
-.chart-title{font-size:12px;color:var(--text2);margin-bottom:16px;text-transform:uppercase;letter-spacing:0.06em}
-.bar-chart{display:flex;flex-direction:column;gap:10px}
-.bar-row{display:flex;align-items:center;gap:12px}
-.bar-label{font-size:11px;color:var(--text3);width:28px;text-align:right}
-.bar-track{flex:1;height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden}
-.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold-dim),var(--gold));transition:width 1.5s cubic-bezier(0.25,1,0.5,1)}
-.bar-val{font-size:11px;color:var(--text2);width:40px}
-
-.pie-visual{display:flex;align-items:center;justify-content:center;gap:24px;padding-top:8px}
-.donut{width:80px;height:80px;flex-shrink:0}
-.pie-legend{display:flex;flex-direction:column;gap:8px}
-.legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
-.legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
-
-/* HOW IT WORKS */
-.section{padding:100px 60px;max-width:1200px;margin:0 auto}
-.section-label{
-  font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:0.14em;
-  margin-bottom:16px;display:flex;align-items:center;gap:10px;
-}
-.section-label::before{content:'';display:block;width:24px;height:1px;background:var(--gold)}
-.section-title{
-  font-family:'Cormorant Garamond',serif;
-  font-size:clamp(36px,4vw,56px);font-weight:600;line-height:1.1;
-  max-width:600px;
-}
-.section-title span{color:var(--gold);font-style:italic}
-
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border2);border:1px solid var(--border2);border-radius:16px;overflow:hidden;margin-top:60px}
-.step{background:var(--black);padding:52px 44px;position:relative;overflow:hidden;transition:background 0.3s}
-.step:hover{background:var(--surface)}
-.step-num{
-  font-family:'Cormorant Garamond',serif;
-  font-size:72px;font-weight:700;color:rgba(201,168,76,0.08);
-  position:absolute;top:20px;right:28px;line-height:1;
-  transition:color 0.3s;
-}
-.step:hover .step-num{color:rgba(201,168,76,0.15)}
-.step-icon{
-  width:52px;height:52px;background:rgba(201,168,76,0.08);
-  border:1px solid var(--border);border-radius:12px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:22px;margin-bottom:28px;
-}
-.step h3{font-size:20px;font-weight:600;margin-bottom:12px;letter-spacing:-0.01em}
-.step p{font-size:14px;color:var(--text2);line-height:1.7}
-
-/* FEATURES */
-.features-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border2);border:1px solid var(--border2);border-radius:16px;overflow:hidden;margin-top:60px}
-.feature{background:var(--black);padding:48px;transition:background 0.3s;position:relative;overflow:hidden}
-.feature:hover{background:var(--surface)}
-.feature::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,var(--gold),transparent);
-  opacity:0;transition:opacity 0.3s;
-}
-.feature:hover::before{opacity:1}
-.feature-icon{font-size:28px;margin-bottom:20px;display:block}
-.feature h3{font-size:20px;font-weight:600;margin-bottom:10px}
-.feature p{font-size:14px;color:var(--text2);line-height:1.7}
-
-/* PRICING */
-.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:60px}
-.price-card{
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.report-section-card{
   background:var(--surface);border:1px solid var(--border2);
-  border-radius:16px;padding:44px 40px;position:relative;
-  transition:transform 0.3s,box-shadow 0.3s;
+  border-radius:var(--radius);padding:24px;
 }
-.price-card:hover{transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,0.3)}
-.price-card.featured{
-  border-color:var(--gold);
-  background:linear-gradient(135deg,rgba(201,168,76,0.04),var(--surface));
-  box-shadow:var(--glow);
-}
-.price-popular{
-  position:absolute;top:-14px;left:50%;transform:translateX(-50%);
-  background:var(--gold);color:#000;padding:4px 18px;
-  border-radius:100px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
-}
-.price-plan{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px}
-.price-amount{
-  font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:700;
-  color:var(--text);line-height:1;
-}
-.price-amount span{font-size:20px;color:var(--text2)}
-.price-period{font-size:13px;color:var(--text3);margin-top:4px;margin-bottom:28px}
-.price-features{list-style:none;display:flex;flex-direction:column;gap:12px;margin-bottom:36px}
-.price-features li{font-size:14px;color:var(--text2);display:flex;align-items:center;gap:10px}
-.price-features li::before{content:'✓';color:var(--gold);font-weight:700;font-size:12px}
-.price-btn{
-  display:block;text-align:center;padding:14px;border-radius:8px;
-  font-size:14px;font-weight:600;text-decoration:none;letter-spacing:0.04em;
-  transition:all 0.2s;cursor:none;
-}
-.price-btn.gold{background:var(--gold);color:#000}
-.price-btn.gold:hover{background:var(--gold2)}
-.price-btn.outline{border:1px solid var(--border);color:var(--text)}
-.price-btn.outline:hover{border-color:var(--gold-dim);color:var(--gold)}
+.rsc-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px}
+.rsc-list{display:flex;flex-direction:column;gap:10px}
+.rsc-item{display:flex;gap:10px;font-size:13px;color:var(--text2);line-height:1.6;align-items:flex-start}
+.rsc-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;margin-top:1px}
+.dot-green{background:rgba(76,175,130,0.15);color:var(--green)}
+.dot-gold{background:var(--gold-dim);color:var(--gold)}
+.dot-blue{background:rgba(100,150,255,0.15);color:#6496FF}
 
-/* TESTIMONIALS */
-.testimonials{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:60px}
-.testimonial{
+.goals-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.goal-card2{
   background:var(--surface);border:1px solid var(--border2);
-  border-radius:14px;padding:36px;
+  border-radius:var(--radius);padding:20px;text-align:center;
 }
-.testimonial-text{font-size:15px;color:var(--text2);line-height:1.7;margin-bottom:24px}
-.testimonial-author{display:flex;align-items:center;gap:12px}
-.author-avatar{
-  width:40px;height:40px;border-radius:50%;
-  background:linear-gradient(135deg,var(--gold-dim),var(--gold));
+.goal-num2{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:700;color:var(--gold);line-height:1;margin-bottom:8px}
+.goal-text2{font-size:12px;color:var(--text2);line-height:1.5}
+
+.closing-card{
+  background:linear-gradient(135deg,var(--gold-dim),transparent);
+  border:1px solid var(--border);border-radius:var(--radius);padding:24px;
+  text-align:center;
+}
+.closing-italic{font-family:'Cormorant Garamond',serif;font-size:17px;font-style:italic;color:var(--text);line-height:1.7}
+
+.report-actions{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.btn-action{
+  padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;
+  border:none;transition:all 0.2s;display:flex;align-items:center;gap:8px;
+}
+.btn-action.gold{background:var(--gold);color:#000}
+.btn-action.gold:hover{background:var(--gold2)}
+.btn-action.outline{border:1px solid var(--border2);background:none;color:var(--text2)}
+.btn-action.outline:hover{border-color:var(--gold-dim);color:var(--text)}
+
+/* ── MODAL ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);
+  z-index:1000;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.2s;
+}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:14px;padding:40px;width:100%;max-width:480px;
+  transform:translateY(20px);transition:transform 0.2s;
+}
+.modal-overlay.open .modal-box{transform:translateY(0)}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;margin-bottom:6px}
+.modal-sub{font-size:14px;color:var(--text2);margin-bottom:28px}
+
+/* ── UPGRADE MODAL ── */
+.upgrade-plans{display:flex;flex-direction:column;gap:12px;margin-bottom:24px}
+.upgrade-plan{
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:18px 20px;
+  display:flex;align-items:center;gap:16px;cursor:pointer;
+  transition:border-color 0.2s;
+}
+.upgrade-plan:hover{border-color:rgba(201,168,76,0.3)}
+.upgrade-plan.selected{border-color:var(--gold);background:var(--gold-dim)}
+.upgrade-plan-name{font-size:15px;font-weight:600}
+.upgrade-plan-desc{font-size:12px;color:var(--text2);margin-top:2px}
+.upgrade-plan-price{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:var(--gold);margin-left:auto;white-space:nowrap}
+
+/* ── CLIENTS PAGE ── */
+.clients-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.client-card{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:24px;transition:border-color 0.2s;
+}
+.client-card:hover{border-color:rgba(201,168,76,0.2)}
+.client-avatar{
+  width:44px;height:44px;border-radius:10px;
+  background:linear-gradient(135deg,var(--gold-dim),var(--surface2));
   display:flex;align-items:center;justify-content:center;
-  font-size:14px;font-weight:700;color:#000;
+  font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;
+  color:var(--gold);margin-bottom:14px;
 }
-.author-name{font-size:14px;font-weight:600}
-.author-role{font-size:12px;color:var(--text3)}
-.stars{color:var(--gold);font-size:12px;letter-spacing:2px;margin-bottom:12px}
+.client-name{font-size:16px;font-weight:600;margin-bottom:4px}
+.client-industry{font-size:12px;color:var(--text3);margin-bottom:12px}
+.client-platforms{display:flex;gap:6px;flex-wrap:wrap}
+.platform-chip{
+  font-size:10px;padding:3px 8px;background:var(--surface2);
+  border:1px solid var(--border2);border-radius:4px;color:var(--text2);
+}
 
-/* CTA SECTION */
-.cta-section{
-  padding:120px 60px;text-align:center;
-  background:radial-gradient(ellipse 70% 60% at 50% 50%,rgba(201,168,76,0.06),transparent);
-  border-top:1px solid var(--border2);
-}
-.cta-section h2{
-  font-family:'Cormorant Garamond',serif;
-  font-size:clamp(40px,5vw,72px);font-weight:600;line-height:1.1;margin-bottom:20px;
-}
-.cta-section p{font-size:18px;color:var(--text2);margin-bottom:44px}
-.cta-note{font-size:13px;color:var(--text3);margin-top:16px}
+/* ── SETTINGS ── */
+.settings-sections{display:flex;flex-direction:column;gap:28px;max-width:640px}
+.settings-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:28px}
+.settings-card-title{font-size:16px;font-weight:600;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border2)}
 
-/* FOOTER */
-footer{
-  padding:60px;border-top:1px solid var(--border2);
-  display:flex;justify-content:space-between;align-items:center;
+/* ── LOADING ── */
+.loading-overlay{
+  position:fixed;inset:0;background:rgba(8,8,8,0.9);backdrop-filter:blur(8px);
+  z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.3s;
 }
-.footer-logo{
-  font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;
+.loading-overlay.active{opacity:1;pointer-events:all}
+.loading-spinner{
+  width:64px;height:64px;border:2px solid rgba(201,168,76,0.15);
+  border-top-color:var(--gold);border-radius:50%;
+  animation:spin 0.8s linear infinite;margin-bottom:24px;
 }
-.footer-logo span{color:var(--gold)}
-.footer-copy{font-size:13px;color:var(--text3)}
-.footer-links{display:flex;gap:28px}
-.footer-links a{font-size:13px;color:var(--text3);text-decoration:none;transition:color 0.2s}
-.footer-links a:hover{color:var(--text2)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold);margin-bottom:8px}
+.loading-sub{font-size:14px;color:var(--text2)}
 
-/* Animations */
-@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
-.reveal{opacity:0;transform:translateY(30px);transition:opacity 0.7s,transform 0.7s}
-.reveal.visible{opacity:1;transform:translateY(0)}
-
-/* Scrollbar */
-::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:var(--black)}
-::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px}
+/* ── MISC ── */
+.back-btn{
+  display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text2);
+  background:none;border:none;padding:0;margin-bottom:24px;transition:color 0.2s;
+}
+.back-btn:hover{color:var(--text)}
+.divider{height:1px;background:var(--border2);margin:24px 0}
 
 @media(max-width:768px){
-  nav{padding:20px 24px}
-  .nav-links{display:none}
-  .hero{padding:100px 24px 60px}
-  .hero-actions{flex-direction:column;width:100%}
-  .btn-primary,.btn-ghost{text-align:center}
-  .stats-bar{flex-direction:column}
-  .stat-item{border-right:none;border-bottom:1px solid var(--border2)}
-  .mockup-section{padding:40px 24px 80px}
-  .mockup-body{padding:24px}
-  .metrics-grid{grid-template-columns:repeat(2,1fr)}
-  .chart-row{grid-template-columns:1fr}
-  .section{padding:80px 24px}
-  .steps{grid-template-columns:1fr}
-  .features-grid{grid-template-columns:1fr}
-  .pricing-grid{grid-template-columns:1fr}
-  .testimonials{grid-template-columns:1fr}
-  footer{flex-direction:column;gap:24px;text-align:center}
-  .footer-links{justify-content:center}
+  .sidebar{display:none}
+  .page-view{padding:24px}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .report-grid{grid-template-columns:1fr}
+  .goals-row{grid-template-columns:1fr}
+  .clients-grid{grid-template-columns:1fr}
+  .platform-grid{grid-template-columns:1fr 1fr}
+  .fields-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<canvas id="bg-canvas"></canvas>
-<div class="cursor" id="cursor"></div>
-<div class="cursor-ring" id="cursorRing"></div>
+<div id="toast-container"></div>
 
-<nav id="navbar">
-  <div class="nav-logo">Reportly<span>AI</span></div>
-  <ul class="nav-links">
-    <li><a href="#how">How it works</a></li>
-    <li><a href="#features">Features</a></li>
-    <li><a href="#pricing">Pricing</a></li>
-  </ul>
-  <a href="#pricing" class="nav-cta">Start Free</a>
-</nav>
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">Generating Report…</div>
+  <div class="loading-sub" id="loadingSubText">Claude AI is analyzing your data</div>
+</div>
 
-<main>
-  <!-- HERO -->
-  <section class="hero">
-    <div class="hero-badge"><span class="dot"></span>AI-Powered Client Reports</div>
-    <h1>Your clients deserve<br><em>reports that speak.</em><span class="line2">Not spreadsheets.</span></h1>
-    <p class="hero-sub">ReportlyAI turns your raw social media stats into beautiful, AI-written client reports in under 60 seconds. White-label. PDF. Done.</p>
-    <div class="hero-actions">
-      <a href="#" class="btn-primary">Generate Your First Report Free</a>
-      <a href="#how" class="btn-ghost">See How It Works</a>
+<!-- ════════════════════════════
+     LOGIN SCREEN
+════════════════════════════ -->
+<div class="screen active" id="screen-login">
+  <div class="auth-box">
+    <div class="auth-logo">Reportly<span>AI</span></div>
+    <div class="auth-title">Welcome back</div>
+    <div class="auth-sub">Sign in to your agency dashboard</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-input" id="login-email" placeholder="you@agency.com" autocomplete="email"/>
     </div>
-    <div class="stats-bar">
-      <div class="stat-item">
-        <span class="stat-number" data-count="1200">0</span>
-        <span class="stat-label">Reports Generated</span>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-input" id="login-password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <div class="form-error" id="login-error"></div>
+    <button class="btn-auth" id="btn-login">Sign In →</button>
+    <div class="auth-switch">Don't have an account? <a onclick="showScreen('register')">Create one free</a></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════
+     REGISTER SCREEN
+════════════════════════════ -->
+<div class="screen" id="screen-register">
+  <div class="auth-box">
+    <div class="auth-logo">Reportly<span>AI</span></div>
+    <div class="auth-title">Create your agency</div>
+    <div class="auth-sub">1 free report — no credit card needed</div>
+    <div class="form-group">
+      <label class="form-label">Agency Name</label>
+      <input type="text" class="form-input" id="reg-agency" placeholder="Nexus Media Agency"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-input" id="reg-email" placeholder="you@agency.com"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-input" id="reg-password" placeholder="Min 6 characters"/>
+    </div>
+    <div class="form-error" id="reg-error"></div>
+    <button class="btn-auth" id="btn-register">Create Account →</button>
+    <div class="auth-switch">Already have an account? <a onclick="showScreen('login')">Sign in</a></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════
+     APP SCREEN
+════════════════════════════ -->
+<div class="screen" id="screen-app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">Reportly<span>AI</span></div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+        <span class="nav-icon">◈</span> Dashboard
+      </button>
+      <button class="nav-item" onclick="showPage('create')" id="nav-create">
+        <span class="nav-icon">✦</span> New Report
+      </button>
+      <button class="nav-item" onclick="showPage('clients')" id="nav-clients">
+        <span class="nav-icon">◉</span> Clients
+      </button>
+      <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
+        <span class="nav-icon">◎</span> Settings
+      </button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="plan-badge" id="sidebar-plan-badge">
+        <div class="plan-badge-label">Current Plan</div>
+        <div class="plan-badge-name" id="sidebar-plan-name">Free</div>
+        <div class="plan-badge-usage" id="sidebar-plan-usage">0 / 1 reports</div>
+        <div class="plan-progress"><div class="plan-progress-fill" id="sidebar-plan-bar" style="width:0%"></div></div>
       </div>
-      <div class="stat-item">
-        <span class="stat-number" data-count="340">0</span>
-        <span class="stat-label">Agencies Using</span>
+      <button class="btn-upgrade" onclick="openUpgradeModal()" id="sidebar-upgrade-btn">⚡ Upgrade Plan</button>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- DASHBOARD -->
+    <div class="page-view active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title" id="dash-greeting">Dashboard</div>
+          <div class="page-sub">Here's your agency overview</div>
+        </div>
+        <button class="btn-sm gold" onclick="showPage('create')">+ New Report</button>
       </div>
-      <div class="stat-item">
-        <span class="stat-number" data-count="5">0</span>
-        <span class="stat-label">Hours Saved / Month</span>
+
+      <div class="stats-row">
+        <div class="stat-card gold">
+          <div class="stat-card-label">Reports This Month</div>
+          <div class="stat-card-value" id="stat-reports">0</div>
+          <div class="stat-card-sub" id="stat-reports-sub">of 1 free</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Total Clients</div>
+          <div class="stat-card-value" id="stat-clients">0</div>
+          <div class="stat-card-sub">Active clients</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Reports Sent</div>
+          <div class="stat-card-value" id="stat-sent">0</div>
+          <div class="stat-card-sub">To clients</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Current Plan</div>
+          <div class="stat-card-value" id="stat-plan" style="font-size:22px;margin-top:6px">Free</div>
+          <div class="stat-card-sub" style="cursor:pointer;color:var(--gold)" onclick="openUpgradeModal()">Upgrade →</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title2">Recent Reports</div>
+        <button class="btn-sm outline" onclick="loadReports()">Refresh</button>
+      </div>
+      <div class="report-list" id="report-list">
+        <div class="empty-state">
+          <div class="empty-icon">📊</div>
+          <div class="empty-title">No reports yet</div>
+          <div class="empty-sub">Create your first AI-powered client report in under 60 seconds</div>
+          <button class="btn-sm gold" onclick="showPage('create')">Create First Report</button>
+        </div>
       </div>
     </div>
-  </section>
 
-  <!-- MOCKUP -->
-  <section class="mockup-section">
-    <div class="report-mockup reveal">
-      <div class="mockup-header">
-        <div class="mockup-dots"><span></span><span></span><span></span></div>
-        <span class="mockup-title">ReportlyAI — Monthly Report · May 2026</span>
+    <!-- CREATE REPORT WIZARD -->
+    <div class="page-view" id="page-create">
+      <button class="back-btn" onclick="showPage('dashboard')">← Back to Dashboard</button>
+      <div class="page-header" style="margin-bottom:0">
+        <div>
+          <div class="page-title">New Report</div>
+          <div class="page-sub">Generate a beautiful AI-written client report</div>
+        </div>
       </div>
-      <div class="mockup-body">
-        <div class="report-top">
-          <div>
-            <div class="report-agency">Prepared by Nexus Media Agency</div>
-            <div class="report-client">Spice Kitchen Co.</div>
-            <div class="report-period">May 1 – May 31, 2026</div>
-          </div>
-          <div class="report-badge">✦ Strong Month</div>
+
+      <div class="wizard-steps" style="margin-top:28px">
+        <div class="wizard-step active" id="wstep-1"><span class="wizard-step-num">01</span>Client</div>
+        <div class="wizard-step" id="wstep-2"><span class="wizard-step-num">02</span>Platforms</div>
+        <div class="wizard-step" id="wstep-3"><span class="wizard-step-num">03</span>Stats</div>
+        <div class="wizard-step" id="wstep-4"><span class="wizard-step-num">04</span>Generate</div>
+      </div>
+
+      <!-- Step 1: Client -->
+      <div class="wizard-pane active" id="wpane-1" style="margin-top:32px">
+        <div class="form-group">
+          <label class="form-label">Select Existing Client</label>
+          <select class="form-input" id="w-client-select" onchange="onClientSelect()">
+            <option value="">-- Choose a client --</option>
+          </select>
         </div>
-        <div class="ai-summary">
-          <div class="ai-label">AI Performance Summary</div>
-          <div class="ai-text">May was your <strong>strongest month in Q2</strong>. Instagram Reels drove a <strong>47% spike in reach</strong>, outperforming static posts 3:1. Your ad spend of ₹18,000 generated ₹2.1L in tracked revenue — an ROAS of <strong>11.7x</strong>. Recommended focus for June: double down on Tuesday/Thursday Reel cadence.</div>
-        </div>
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <div class="metric-platform">Instagram</div>
-            <div class="metric-value">84.2K</div>
-            <div class="metric-change">↑ 12.4% reach</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-platform">YouTube</div>
-            <div class="metric-value">9,340</div>
-            <div class="metric-change">↑ 8.1% views</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-platform">Eng. Rate</div>
-            <div class="metric-value">6.8%</div>
-            <div class="metric-change">↑ 1.2pts</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-platform">Ad ROAS</div>
-            <div class="metric-value">11.7x</div>
-            <div class="metric-change down">↓ from 13.2x</div>
-          </div>
-        </div>
-        <div class="chart-row">
-          <div class="chart-box">
-            <div class="chart-title">Weekly Reach</div>
-            <div class="bar-chart">
-              <div class="bar-row"><span class="bar-label">W1</span><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><span class="bar-val">18.4K</span></div>
-              <div class="bar-row"><span class="bar-label">W2</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><span class="bar-val">24.1K</span></div>
-              <div class="bar-row"><span class="bar-label">W3</span><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div><span class="bar-val">30.2K</span></div>
-              <div class="bar-row"><span class="bar-label">W4</span><div class="bar-track"><div class="bar-fill" style="width:35%"></div></div><span class="bar-val">11.5K</span></div>
+        <div style="text-align:center;color:var(--text3);font-size:13px;margin:16px 0">— or add a new client —</div>
+        <div id="new-client-form">
+          <div class="fields-grid">
+            <div class="form-group">
+              <label class="form-label">Client Name *</label>
+              <input type="text" class="form-input" id="w-client-name" placeholder="Spice Kitchen Co."/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Client Email</label>
+              <input type="email" class="form-input" id="w-client-email" placeholder="client@brand.com"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Industry</label>
+              <input type="text" class="form-input" id="w-client-industry" placeholder="Restaurant, Fashion, etc."/>
             </div>
           </div>
-          <div class="chart-box">
-            <div class="chart-title">Content Mix</div>
-            <div class="pie-visual">
-              <svg class="donut" viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="30" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="14"/>
-                <circle cx="40" cy="40" r="30" fill="none" stroke="#C9A84C" stroke-width="14" stroke-dasharray="113 75" stroke-dashoffset="-23" transform="rotate(-90 40 40)"/>
-                <circle cx="40" cy="40" r="30" fill="none" stroke="#4CAF82" stroke-width="14" stroke-dasharray="47 141" stroke-dashoffset="-136" transform="rotate(-90 40 40)"/>
-                <circle cx="40" cy="40" r="30" fill="none" stroke="#5a5650" stroke-width="14" stroke-dasharray="28 160" stroke-dashoffset="-183" transform="rotate(-90 40 40)"/>
-              </svg>
-              <div class="pie-legend">
-                <div class="legend-item"><div class="legend-dot" style="background:#C9A84C"></div>Reels 60%</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#4CAF82"></div>Carousels 25%</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#5a5650"></div>Static 15%</div>
+        </div>
+        <div class="divider"></div>
+        <div class="fields-grid">
+          <div class="form-group">
+            <label class="form-label">Period Start *</label>
+            <input type="date" class="form-input" id="w-period-start"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Period End *</label>
+            <input type="date" class="form-input" id="w-period-end"/>
+          </div>
+        </div>
+        <div class="wizard-nav">
+          <div></div>
+          <button class="btn-wizard primary" onclick="wizardNext(1)">Next: Choose Platforms →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Platforms -->
+      <div class="wizard-pane" id="wpane-2" style="margin-top:32px">
+        <p style="font-size:14px;color:var(--text2);margin-bottom:20px">Select the platforms you managed for this client this month:</p>
+        <div class="platform-grid">
+          <div class="platform-toggle" id="ptog-instagram" onclick="togglePlatform('instagram')">
+            <span class="platform-toggle-icon">📸</span>
+            <span class="platform-toggle-name">Instagram</span>
+          </div>
+          <div class="platform-toggle" id="ptog-youtube" onclick="togglePlatform('youtube')">
+            <span class="platform-toggle-icon">▶️</span>
+            <span class="platform-toggle-name">YouTube</span>
+          </div>
+          <div class="platform-toggle" id="ptog-facebook" onclick="togglePlatform('facebook')">
+            <span class="platform-toggle-icon">👥</span>
+            <span class="platform-toggle-name">Facebook</span>
+          </div>
+          <div class="platform-toggle" id="ptog-linkedin" onclick="togglePlatform('linkedin')">
+            <span class="platform-toggle-icon">💼</span>
+            <span class="platform-toggle-name">LinkedIn</span>
+          </div>
+          <div class="platform-toggle" id="ptog-twitter" onclick="togglePlatform('twitter')">
+            <span class="platform-toggle-icon">🐦</span>
+            <span class="platform-toggle-name">Twitter / X</span>
+          </div>
+          <div class="platform-toggle" id="ptog-meta_ads" onclick="togglePlatform('meta_ads')">
+            <span class="platform-toggle-icon">📢</span>
+            <span class="platform-toggle-name">Meta Ads</span>
+          </div>
+        </div>
+        <div class="wizard-nav">
+          <button class="btn-wizard secondary" onclick="wizardBack(2)">← Back</button>
+          <button class="btn-wizard primary" onclick="wizardNext(2)">Next: Enter Stats →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Stats -->
+      <div class="wizard-pane" id="wpane-3" style="margin-top:32px">
+        <div id="stats-fields-container"></div>
+        <div class="form-group" style="margin-top:16px">
+          <label class="form-label">Additional Notes for AI (optional)</label>
+          <textarea class="form-input" id="w-notes" rows="3" placeholder="Any context you want the AI to know — campaigns run, events, brand launches..."></textarea>
+        </div>
+        <div class="wizard-nav">
+          <button class="btn-wizard secondary" onclick="wizardBack(3)">← Back</button>
+          <button class="btn-wizard primary" onclick="generateReport()">✦ Generate Report</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Preview (shown after generation) -->
+      <div class="wizard-pane" id="wpane-4" style="margin-top:32px">
+        <div id="report-preview-container"></div>
+      </div>
+    </div>
+
+    <!-- CLIENTS PAGE -->
+    <div class="page-view" id="page-clients">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Clients</div>
+          <div class="page-sub">Manage your client portfolio</div>
+        </div>
+        <button class="btn-sm gold" onclick="openAddClientModal()">+ Add Client</button>
+      </div>
+      <div class="clients-grid" id="clients-grid">
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="empty-icon">◉</div>
+          <div class="empty-title">No clients yet</div>
+          <div class="empty-sub">Add your first client to start creating reports</div>
+          <button class="btn-sm gold" onclick="openAddClientModal()">Add Client</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="page-view" id="page-settings">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Settings</div>
+          <div class="page-sub">Manage your agency profile</div>
+        </div>
+      </div>
+      <div class="settings-sections">
+        <div class="settings-card">
+          <div class="settings-card-title">Agency Profile</div>
+          <div class="form-group">
+            <label class="form-label">Agency Name</label>
+            <input type="text" class="form-input" id="set-agency-name"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Brand Color</label>
+            <div style="display:flex;gap:12px;align-items:center">
+              <input type="color" id="set-brand-color" value="#C9A84C" style="width:48px;height:40px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);cursor:pointer"/>
+              <input type="text" class="form-input" id="set-brand-color-hex" placeholder="#C9A84C" style="flex:1"/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Agency Tagline (shown on reports)</label>
+            <input type="text" class="form-input" id="set-tagline" placeholder="Premium Social Media Management"/>
+          </div>
+          <button class="btn-sm gold" onclick="saveSettings()">Save Changes</button>
+        </div>
+        <div class="settings-card">
+          <div class="settings-card-title">Upload Logo</div>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Your logo will appear on all reports. Available on Growth and Pro plans.</p>
+          <input type="file" id="logo-input" accept="image/*" style="display:none" onchange="uploadLogo()"/>
+          <div id="logo-preview" style="margin-bottom:16px;display:none">
+            <img id="logo-img" style="height:48px;object-fit:contain;border-radius:4px"/>
+          </div>
+          <button class="btn-sm outline" onclick="document.getElementById('logo-input').click()">Upload Logo</button>
+        </div>
+        <div class="settings-card">
+          <div class="settings-card-title">Billing & Plan</div>
+          <div id="billing-info" style="margin-bottom:20px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:16px;font-weight:600" id="set-plan-name">Free Plan</div>
+                <div style="font-size:13px;color:var(--text2);margin-top:2px" id="set-plan-usage"></div>
               </div>
             </div>
           </div>
+          <button class="btn-sm gold" onclick="openUpgradeModal()">Upgrade Plan ⚡</button>
         </div>
       </div>
     </div>
-  </section>
 
-  <!-- HOW IT WORKS -->
-  <section class="section" id="how">
-    <div class="reveal">
-      <div class="section-label">Process</div>
-      <h2 class="section-title">Three steps.<br><span>Sixty seconds.</span></h2>
-    </div>
-    <div class="steps reveal">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-icon">📊</div>
-        <h3>Enter Your Stats</h3>
-        <p>Paste in your monthly numbers — followers, reach, engagement, ad spend — for any platform. No API keys. No complicated setup.</p>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-icon">✦</div>
-        <h3>AI Writes the Story</h3>
-        <p>Claude AI analyzes your data, writes professional performance commentary, highlights wins, identifies improvements, and sets next-month goals.</p>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-icon">📄</div>
-        <h3>Send the PDF</h3>
-        <p>Download a pixel-perfect branded PDF or email it directly to your client. Your logo. Your colors. No mention of ReportlyAI.</p>
-      </div>
-    </div>
-  </section>
+  </main>
+</div>
 
-  <!-- FEATURES -->
-  <section class="section" id="features">
-    <div class="reveal">
-      <div class="section-label">Features</div>
-      <h2 class="section-title">Everything your<br><span>agency needs.</span></h2>
-    </div>
-    <div class="features-grid reveal">
-      <div class="feature">
-        <span class="feature-icon">🤖</span>
-        <h3>AI-Written Commentary</h3>
-        <p>Stop writing "reach grew this month." Claude AI delivers strategic, client-ready language that makes you sound like a senior strategist — every single time.</p>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">🎨</span>
-        <h3>White-Label Reports</h3>
-        <p>Your brand. Your colors. Your logo. Clients see a premium agency document, not a SaaS tool. Full white-labeling on Growth and Pro plans.</p>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">⚡</span>
-        <h3>Multi-Platform Support</h3>
-        <p>Instagram, YouTube, Facebook, LinkedIn, Twitter/X, and Meta Ads — enter data for all platforms in one unified report.</p>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">📐</span>
-        <h3>6 Premium Templates</h3>
-        <p>Dark Luxury, Minimal, Bold, Corporate, Gulf/Arabic-ready, and Playful. Different themes for different clients. All look expensive.</p>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">✉️</span>
-        <h3>One-Click Email Delivery</h3>
-        <p>Email the report directly to your client from inside ReportlyAI. No downloading, no attaching. Tracked opens coming in V2.</p>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">🌍</span>
-        <h3>India-First, Global-Ready</h3>
-        <p>Pay in ₹ via Razorpay or $ via Stripe. Built for Indian agencies, priced for Indian markets, powerful enough for Gulf and global clients.</p>
-      </div>
-    </div>
-  </section>
+<!-- ══════════════════
+     MODALS
+══════════════════ -->
 
-  <!-- PRICING -->
-  <section class="section" id="pricing">
-    <div class="reveal">
-      <div class="section-label">Pricing</div>
-      <h2 class="section-title">Simple pricing.<br><span>No surprises.</span></h2>
-    </div>
-    <div class="pricing-grid reveal">
-      <div class="price-card">
-        <div class="price-plan">Starter</div>
-        <div class="price-amount"><span>₹</span>999</div>
-        <div class="price-period">per month</div>
-        <ul class="price-features">
-          <li>5 reports / month</li>
-          <li>1 user seat</li>
-          <li>2 templates</li>
-          <li>PDF download</li>
-          <li>Email delivery</li>
-        </ul>
-        <a href="#" class="price-btn outline">Get Started Free</a>
-      </div>
-      <div class="price-card featured">
-        <div class="price-popular">Most Popular</div>
-        <div class="price-plan">Growth</div>
-        <div class="price-amount"><span>₹</span>2,499</div>
-        <div class="price-period">per month</div>
-        <ul class="price-features">
-          <li>20 reports / month</li>
-          <li>3 user seats</li>
-          <li>All 6 templates</li>
-          <li>White-label reports</li>
-          <li>Priority support</li>
-        </ul>
-        <a href="#" class="price-btn gold">Start Free Trial</a>
-      </div>
-      <div class="price-card">
-        <div class="price-plan">Pro</div>
-        <div class="price-amount"><span>₹</span>4,999</div>
-        <div class="price-period">per month</div>
-        <ul class="price-features">
-          <li>Unlimited reports</li>
-          <li>10 user seats</li>
-          <li>White-label + custom domain</li>
-          <li>Client portal (V2)</li>
-          <li>Dedicated onboarding</li>
-        </ul>
-        <a href="#" class="price-btn outline">Talk to Us</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- TESTIMONIALS -->
-  <section class="section">
-    <div class="reveal">
-      <div class="section-label">Social Proof</div>
-      <h2 class="section-title">Agencies already<br><span>saving hours.</span></h2>
-    </div>
-    <div class="testimonials reveal">
-      <div class="testimonial">
-        <div class="stars">★★★★★</div>
-        <p class="testimonial-text">"I was spending 4–5 hours a month on client reports. Now it takes 10 minutes. The AI commentary is genuinely impressive — clients actually read the reports now."</p>
-        <div class="testimonial-author">
-          <div class="author-avatar">P</div>
-          <div>
-            <div class="author-name">Priya Mehta</div>
-            <div class="author-role">Freelance SMM, Mumbai</div>
-          </div>
+<!-- UPGRADE MODAL -->
+<div class="modal-overlay" id="modal-upgrade">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-title">Upgrade Your Plan</div>
+    <div class="modal-sub">Choose a plan to unlock more reports and features</div>
+    <div class="upgrade-plans">
+      <div class="upgrade-plan" id="uplan-starter" onclick="selectUpgradePlan('starter')">
+        <div>
+          <div class="upgrade-plan-name">Starter</div>
+          <div class="upgrade-plan-desc">5 reports/month · 2 templates · PDF download</div>
         </div>
+        <div class="upgrade-plan-price">₹999<span style="font-size:14px;color:var(--text2)">/mo</span></div>
       </div>
-      <div class="testimonial">
-        <div class="stars">★★★★★</div>
-        <p class="testimonial-text">"My clients in Dubai love the PDF quality. They asked how I make such professional reports. I just said it's our internal tool." The white-label is everything."</p>
-        <div class="testimonial-author">
-          <div class="author-avatar">A</div>
-          <div>
-            <div class="author-name">Arjun Kapoor</div>
-            <div class="author-role">Digital Agency Owner, Delhi</div>
-          </div>
+      <div class="upgrade-plan" id="uplan-growth" onclick="selectUpgradePlan('growth')">
+        <div>
+          <div class="upgrade-plan-name">Growth <span style="font-size:11px;color:var(--gold);background:var(--gold-dim);padding:2px 8px;border-radius:4px;margin-left:4px">Popular</span></div>
+          <div class="upgrade-plan-desc">20 reports/month · All templates · White-label</div>
         </div>
+        <div class="upgrade-plan-price">₹2,499<span style="font-size:14px;color:var(--text2)">/mo</span></div>
       </div>
-      <div class="testimonial">
-        <div class="stars">★★★★★</div>
-        <p class="testimonial-text">"Worth every rupee. I handle 12 clients solo and used to dread the last week of every month. ReportlyAI changed that completely. Paying for Pro, no questions."</p>
-        <div class="testimonial-author">
-          <div class="author-avatar">S</div>
-          <div>
-            <div class="author-name">Sneha Rajan</div>
-            <div class="author-role">Social Media Consultant, Bangalore</div>
-          </div>
+      <div class="upgrade-plan" id="uplan-pro" onclick="selectUpgradePlan('pro')">
+        <div>
+          <div class="upgrade-plan-name">Pro</div>
+          <div class="upgrade-plan-desc">Unlimited reports · White-label · Priority support</div>
         </div>
+        <div class="upgrade-plan-price">₹4,999<span style="font-size:14px;color:var(--text2)">/mo</span></div>
       </div>
     </div>
-  </section>
-
-  <!-- CTA -->
-  <section class="cta-section">
-    <h2>Start generating reports<br>your clients <em style="color:var(--gold);font-family:'Cormorant Garamond',serif">actually open.</em></h2>
-    <p>3 reports free. No credit card required. Setup in 2 minutes.</p>
-    <a href="#" class="btn-primary" style="font-size:16px;padding:18px 52px">Create My First Report Free →</a>
-    <div class="cta-note">✓ No API keys &nbsp; ✓ No design skills needed &nbsp; ✓ White-label from day one</div>
-  </section>
-</main>
-
-<footer>
-  <div class="footer-logo">Reportly<span>AI</span></div>
-  <div class="footer-copy">© 2026 ReportlyAI. Built for agencies that care about their brand.</div>
-  <div class="footer-links">
-    <a href="#">Privacy</a>
-    <a href="#">Terms</a>
-    <a href="#">Contact</a>
+    <div style="display:flex;gap:12px">
+      <button class="btn-wizard secondary" style="flex:1" onclick="closeModal('modal-upgrade')">Cancel</button>
+      <button class="btn-wizard primary" style="flex:2" onclick="initiatePayment()" id="btn-pay">Pay with Cashfree →</button>
+    </div>
   </div>
-</footer>
+</div>
+
+<!-- ADD CLIENT MODAL -->
+<div class="modal-overlay" id="modal-add-client">
+  <div class="modal-box">
+    <div class="modal-title">Add New Client</div>
+    <div class="modal-sub">Add a client you manage social media for</div>
+    <div class="form-group">
+      <label class="form-label">Client Name *</label>
+      <input type="text" class="form-input" id="modal-client-name" placeholder="Spice Kitchen Co."/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Client Email</label>
+      <input type="email" class="form-input" id="modal-client-email" placeholder="owner@client.com"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Industry</label>
+      <input type="text" class="form-input" id="modal-client-industry" placeholder="Restaurant, Fashion, etc."/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Platforms (select all that apply)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" value="instagram" class="modal-platform-cb"/> Instagram</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" value="youtube" class="modal-platform-cb"/> YouTube</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" value="facebook" class="modal-platform-cb"/> Facebook</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" value="linkedin" class="modal-platform-cb"/> LinkedIn</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" value="twitter" class="modal-platform-cb"/> Twitter/X</label>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:8px">
+      <button class="btn-wizard secondary" style="flex:1" onclick="closeModal('modal-add-client')">Cancel</button>
+      <button class="btn-wizard primary" style="flex:2" onclick="saveNewClient()">Add Client →</button>
+    </div>
+  </div>
+</div>
+
+<!-- SEND REPORT MODAL -->
+<div class="modal-overlay" id="modal-send-report">
+  <div class="modal-box">
+    <div class="modal-title">Send Report to Client</div>
+    <div class="modal-sub">The PDF will be emailed directly to your client</div>
+    <div class="form-group">
+      <label class="form-label">Client Name</label>
+      <input type="text" class="form-input" id="send-client-name" placeholder="John Smith"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Client Email *</label>
+      <input type="email" class="form-input" id="send-email" placeholder="client@business.com"/>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:8px">
+      <button class="btn-wizard secondary" style="flex:1" onclick="closeModal('modal-send-report')">Cancel</button>
+      <button class="btn-wizard primary" style="flex:2" onclick="sendReport()">Send Report ✉️</button>
+    </div>
+  </div>
+</div>
 
 <script>
-// ── Cursor ──
-const cursor=document.getElementById('cursor'),ring=document.getElementById('cursorRing');
-let mx=0,my=0,rx=0,ry=0;
-document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursor.style.left=mx+'px';cursor.style.top=my+'px'});
-(function animRing(){rx+=(mx-rx)*0.12;ry+=(my-ry)*0.12;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(animRing)})();
-document.querySelectorAll('a,button,.btn-primary,.btn-ghost,.price-btn').forEach(el=>{
-  el.addEventListener('mouseenter',()=>{cursor.style.width='18px';cursor.style.height='18px';ring.style.width='52px';ring.style.height='52px'});
-  el.addEventListener('mouseleave',()=>{cursor.style.width='10px';cursor.style.height='10px';ring.style.width='36px';ring.style.height='36px'});
-});
+// ══════════════════════════════════════════════════
+//  CONFIG — change this to your Railway backend URL
+// ══════════════════════════════════════════════════
+const API = 'https://your-railway-app.up.railway.app';
+// For local dev: const API = 'http://localhost:3001';
 
-// ── Nav scroll ──
-const nav=document.getElementById('navbar');
-window.addEventListener('scroll',()=>{nav.classList.toggle('scrolled',scrollY>60)});
+// ── STATE ──
+let token = localStorage.getItem('reportly_token');
+let workspace = null;
+let clients = [];
+let reports = [];
+let selectedPlatforms = new Set();
+let wizardStep = 1;
+let selectedPlan = 'growth';
+let currentReportId = null;
 
-// ── 3D Canvas Background ──
-const canvas=document.getElementById('bg-canvas');
-const ctx=canvas.getContext('2d');
-let W,H,particles=[],lines=[];
-
-function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight}
-resize();
-window.addEventListener('resize',resize);
-
-// Floating particles
-for(let i=0;i<80;i++){
-  particles.push({
-    x:Math.random()*window.innerWidth,
-    y:Math.random()*window.innerHeight,
-    vx:(Math.random()-0.5)*0.3,
-    vy:(Math.random()-0.5)*0.3,
-    size:Math.random()*1.5+0.3,
-    opacity:Math.random()*0.5+0.1,
-    gold:Math.random()>0.7
-  });
+// ── UTILS ──
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icons = {success:'✓', error:'✕', info:'✦'};
+  el.innerHTML = `<span>${icons[type]||'✦'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
 }
 
-// 3D-ish rotating rings
-const rings=[
-  {cx:0.8,cy:0.2,rx:200,ry:80,rot:0,speed:0.003,color:'rgba(201,168,76,0.06)'},
-  {cx:0.15,cy:0.7,rx:150,ry:60,rot:1,speed:-0.002,color:'rgba(201,168,76,0.04)'},
-  {cx:0.6,cy:0.85,rx:120,ry:50,rot:2,speed:0.004,color:'rgba(201,168,76,0.05)'},
-];
+function loading(show, text='Generating Report…', sub='Claude AI is analyzing your data') {
+  const el = document.getElementById('loadingOverlay');
+  document.getElementById('loadingText').textContent = text;
+  document.getElementById('loadingSubText').textContent = sub;
+  el.classList.toggle('active', show);
+}
 
-// Grid lines
-const gridLines=[];
-for(let i=0;i<12;i++){gridLines.push({x:i/12,opacity:0.015+Math.random()*0.02})}
-for(let i=0;i<8;i++){gridLines.push({y:i/8,opacity:0.015+Math.random()*0.02})}
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+}
 
-let animFrame=0;
-function draw(){
-  ctx.clearRect(0,0,W,H);
-  animFrame++;
+function showPage(name) {
+  document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  document.getElementById(`nav-${name}`)?.classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'clients') loadClients();
+  if (name === 'create') initWizard();
+  if (name === 'settings') loadSettings();
+}
 
-  // Subtle gradient bg
-  const grad=ctx.createRadialGradient(W*0.5,H*0.3,0,W*0.5,H*0.5,W*0.8);
-  grad.addColorStop(0,'rgba(201,168,76,0.03)');
-  grad.addColorStop(1,'transparent');
-  ctx.fillStyle=grad;
-  ctx.fillRect(0,0,W,H);
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-  // Grid
-  ctx.lineWidth=0.5;
-  gridLines.forEach(l=>{
-    ctx.strokeStyle=`rgba(201,168,76,${l.opacity})`;
-    ctx.beginPath();
-    if(l.x!==undefined){ctx.moveTo(l.x*W,0);ctx.lineTo(l.x*W,H)}
-    else{ctx.moveTo(0,l.y*H);ctx.lineTo(W,l.y*H)}
-    ctx.stroke();
+async function api(path, opts={}) {
+  const res = await fetch(`${API}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    ...opts
   });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
 
-  // Rings (3D perspective effect)
-  rings.forEach(r=>{
-    r.rot+=r.speed;
-    const cx=r.cx*W,cy=r.cy*H;
-    ctx.save();
-    ctx.translate(cx,cy);
-    ctx.rotate(r.rot);
-    ctx.scale(1,0.4); // perspective squish
-    ctx.beginPath();
-    ctx.ellipse(0,0,r.rx,r.ry,0,0,Math.PI*2);
-    ctx.strokeStyle=r.color;
-    ctx.lineWidth=1;
-    ctx.stroke();
-    // Inner ring
-    ctx.beginPath();
-    ctx.ellipse(0,0,r.rx*0.6,r.ry*0.6,0,0,Math.PI*2);
-    ctx.strokeStyle=r.color;
-    ctx.stroke();
-    ctx.restore();
+// ── AUTH ──
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'Fill in all fields'; return; }
+  try {
+    const data = await api('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+    token = data.token;
+    localStorage.setItem('reportly_token', token);
+    await initApp();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
+
+document.getElementById('btn-register').addEventListener('click', async () => {
+  const agency_name = document.getElementById('reg-agency').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const errEl = document.getElementById('reg-error');
+  errEl.textContent = '';
+  if (!agency_name || !email || !password) { errEl.textContent = 'Fill in all fields'; return; }
+  try {
+    const data = await api('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ agency_name, email, password })
+    });
+    token = data.token;
+    localStorage.setItem('reportly_token', token);
+    await initApp();
+    toast('Account created! Your free report is ready. 🎉', 'success');
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
+
+// Enter key support
+['login-email','login-password'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-login').click();
   });
+});
 
-  // Floating particles
-  particles.forEach(p=>{
-    p.x+=p.vx;p.y+=p.vy;
-    if(p.x<0)p.x=W;if(p.x>W)p.x=0;
-    if(p.y<0)p.y=H;if(p.y>H)p.y=0;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
-    ctx.fillStyle=p.gold?`rgba(201,168,76,${p.opacity})`:`rgba(240,237,230,${p.opacity*0.4})`;
-    ctx.fill();
-  });
+function logout() {
+  localStorage.removeItem('reportly_token');
+  token = null; workspace = null;
+  showScreen('login');
+}
 
-  // Connect nearby particles with gold lines
-  for(let i=0;i<particles.length;i++){
-    for(let j=i+1;j<particles.length;j++){
-      const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y;
-      const dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist<120){
-        ctx.beginPath();
-        ctx.moveTo(particles[i].x,particles[i].y);
-        ctx.lineTo(particles[j].x,particles[j].y);
-        ctx.strokeStyle=`rgba(201,168,76,${0.04*(1-dist/120)})`;
-        ctx.lineWidth=0.5;
-        ctx.stroke();
-      }
+// ── INIT ──
+async function initApp() {
+  try {
+    const data = await api('/auth/me');
+    workspace = data.workspace;
+    updateSidebar();
+    showScreen('app');
+    loadDashboard();
+  } catch (err) {
+    localStorage.removeItem('reportly_token');
+    showScreen('login');
+  }
+}
+
+function updateSidebar() {
+  if (!workspace) return;
+  const planLimits = { free: 1, starter: 5, growth: 20, pro: '∞' };
+  const limit = planLimits[workspace.plan] || 1;
+  const used = workspace.reports_used || 0;
+  document.getElementById('sidebar-plan-name').textContent = workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1);
+  document.getElementById('sidebar-plan-usage').textContent = `${used} / ${limit} reports`;
+  const pct = limit === '∞' ? 10 : Math.min(100, (used / limit) * 100);
+  document.getElementById('sidebar-plan-bar').style.width = pct + '%';
+  document.getElementById('set-plan-name').textContent = workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1) + ' Plan';
+  document.getElementById('set-plan-usage').textContent = `${used} of ${limit} reports used this month`;
+  document.getElementById('stat-plan').textContent = workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1);
+  if (workspace.plan !== 'free') {
+    document.getElementById('sidebar-upgrade-btn').style.display = 'none';
+  }
+}
+
+// ── DASHBOARD ──
+async function loadDashboard() {
+  try {
+    const [rData, cData] = await Promise.all([
+      api('/reports'),
+      api('/clients')
+    ]);
+    reports = rData.reports || [];
+    clients = cData.clients || [];
+    updateSidebar();
+
+    document.getElementById('stat-reports').textContent = workspace.reports_used || 0;
+    const limit = { free:1, starter:5, growth:20, pro:'∞' }[workspace.plan];
+    document.getElementById('stat-reports-sub').textContent = `of ${limit} this month`;
+    document.getElementById('stat-clients').textContent = clients.length;
+    document.getElementById('stat-sent').textContent = reports.filter(r => r.status === 'sent').length;
+    document.getElementById('dash-greeting').textContent = `${workspace.agency_name}`;
+
+    renderReportList();
+  } catch (err) {
+    toast('Failed to load dashboard: ' + err.message, 'error');
+  }
+}
+
+function renderReportList() {
+  const el = document.getElementById('report-list');
+  if (!reports.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📊</div>
+      <div class="empty-title">No reports yet</div>
+      <div class="empty-sub">Create your first AI-powered client report in under 60 seconds</div>
+      <button class="btn-sm gold" onclick="showPage('create')">Create First Report</button>
+    </div>`;
+    return;
+  }
+  el.innerHTML = reports.map(r => `
+    <div class="report-card" onclick="viewReport('${r.id}')">
+      <div class="report-card-icon">📊</div>
+      <div class="report-card-info">
+        <div class="report-card-client">${r.clients?.name || 'Unknown Client'}</div>
+        <div class="report-card-period">${r.period_start} – ${r.period_end}</div>
+      </div>
+      <span class="report-card-status status-${r.status}">${r.status}</span>
+      <div class="report-card-actions" onclick="event.stopPropagation()">
+        ${r.pdf_url ? `<a href="${r.pdf_url}" target="_blank" class="btn-sm outline">↓ PDF</a>` : ''}
+        <button class="btn-sm gold" onclick="openSendModal('${r.id}')">Send</button>
+        <button class="btn-sm danger" onclick="deleteReport('${r.id}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadReports() {
+  try {
+    const data = await api('/reports');
+    reports = data.reports || [];
+    renderReportList();
+  } catch(e) { toast('Failed to refresh', 'error'); }
+}
+
+// ── CLIENTS ──
+async function loadClients() {
+  try {
+    const data = await api('/clients');
+    clients = data.clients || [];
+    renderClients();
+    populateClientDropdown();
+  } catch (err) {
+    toast('Failed to load clients', 'error');
+  }
+}
+
+function renderClients() {
+  const el = document.getElementById('clients-grid');
+  if (!clients.length) {
+    el.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">◉</div>
+      <div class="empty-title">No clients yet</div>
+      <div class="empty-sub">Add your first client to start creating reports</div>
+      <button class="btn-sm gold" onclick="openAddClientModal()">Add Client</button>
+    </div>`;
+    return;
+  }
+  el.innerHTML = clients.map(c => `
+    <div class="client-card">
+      <div class="client-avatar">${c.name.charAt(0).toUpperCase()}</div>
+      <div class="client-name">${c.name}</div>
+      <div class="client-industry">${c.industry || 'No industry set'}</div>
+      <div class="client-platforms">
+        ${(c.platforms || []).map(p => `<span class="platform-chip">${p}</span>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn-sm gold" onclick="startReportForClient('${c.id}')">New Report</button>
+        <button class="btn-sm danger" onclick="deleteClient('${c.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function populateClientDropdown() {
+  const sel = document.getElementById('w-client-select');
+  sel.innerHTML = '<option value="">-- Choose existing client --</option>' +
+    clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+function openAddClientModal() { openModal('modal-add-client'); }
+
+async function saveNewClient() {
+  const name = document.getElementById('modal-client-name').value.trim();
+  if (!name) { toast('Client name required', 'error'); return; }
+  const platforms = [...document.querySelectorAll('.modal-platform-cb:checked')].map(c => c.value);
+  try {
+    await api('/clients/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        email: document.getElementById('modal-client-email').value,
+        industry: document.getElementById('modal-client-industry').value,
+        platforms
+      })
+    });
+    closeModal('modal-add-client');
+    toast('Client added!', 'success');
+    loadClients();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function deleteClient(id) {
+  if (!confirm('Delete this client?')) return;
+  try {
+    await api(`/clients/${id}`, { method: 'DELETE' });
+    toast('Client deleted', 'success');
+    loadClients();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function startReportForClient(clientId) {
+  showPage('create');
+  setTimeout(() => {
+    document.getElementById('w-client-select').value = clientId;
+    onClientSelect();
+  }, 100);
+}
+
+// ── WIZARD ──
+function initWizard() {
+  wizardStep = 1;
+  selectedPlatforms = new Set();
+  setWizardStep(1);
+  populateClientDropdown();
+  // Set default date range (current month)
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  document.getElementById('w-period-start').value = firstDay.toISOString().split('T')[0];
+  document.getElementById('w-period-end').value = lastDay.toISOString().split('T')[0];
+}
+
+function setWizardStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById(`wpane-${i}`)?.classList.toggle('active', i === n);
+    const stepEl = document.getElementById(`wstep-${i}`);
+    stepEl?.classList.remove('active', 'done');
+    if (i === n) stepEl?.classList.add('active');
+    else if (i < n) stepEl?.classList.add('done');
+  }
+  wizardStep = n;
+}
+
+function onClientSelect() {
+  const val = document.getElementById('w-client-select').value;
+  document.getElementById('new-client-form').style.display = val ? 'none' : 'block';
+}
+
+function togglePlatform(platform) {
+  const el = document.getElementById(`ptog-${platform}`);
+  if (selectedPlatforms.has(platform)) {
+    selectedPlatforms.delete(platform);
+    el.classList.remove('selected');
+  } else {
+    selectedPlatforms.add(platform);
+    el.classList.add('selected');
+  }
+}
+
+function wizardNext(step) {
+  if (step === 1) {
+    const clientSelect = document.getElementById('w-client-select').value;
+    const clientName = document.getElementById('w-client-name').value.trim();
+    const periodStart = document.getElementById('w-period-start').value;
+    const periodEnd = document.getElementById('w-period-end').value;
+    if (!clientSelect && !clientName) { toast('Select or enter a client name', 'error'); return; }
+    if (!periodStart || !periodEnd) { toast('Select a date range', 'error'); return; }
+    setWizardStep(2);
+  }
+  if (step === 2) {
+    if (selectedPlatforms.size === 0) { toast('Select at least one platform', 'error'); return; }
+    buildStatsFields();
+    setWizardStep(3);
+  }
+}
+
+function wizardBack(step) {
+  setWizardStep(step - 1);
+}
+
+const PLATFORM_FIELDS = {
+  instagram: [
+    { id: 'followers', label: 'Followers', placeholder: '10,500' },
+    { id: 'followers_change', label: 'Followers Change %', placeholder: '+5.2' },
+    { id: 'reach', label: 'Total Reach', placeholder: '84,200' },
+    { id: 'impressions', label: 'Impressions', placeholder: '120,000' },
+    { id: 'engagement_rate', label: 'Engagement Rate %', placeholder: '6.8' },
+    { id: 'reels_plays', label: 'Reels Plays', placeholder: '45,000' },
+    { id: 'top_post', label: 'Best Performing Post', placeholder: 'Describe your top post' }
+  ],
+  youtube: [
+    { id: 'subscribers', label: 'Subscribers', placeholder: '5,200' },
+    { id: 'subscribers_change', label: 'Subscriber Change %', placeholder: '+3.1' },
+    { id: 'views', label: 'Total Views', placeholder: '9,340' },
+    { id: 'watch_time', label: 'Watch Time (hours)', placeholder: '1,200' },
+    { id: 'top_video', label: 'Top Video', placeholder: 'Video title or description' }
+  ],
+  facebook: [
+    { id: 'page_likes', label: 'Page Likes', placeholder: '8,400' },
+    { id: 'reach', label: 'Total Reach', placeholder: '22,000' },
+    { id: 'engagement', label: 'Total Engagements', placeholder: '1,200' }
+  ],
+  linkedin: [
+    { id: 'followers', label: 'Followers', placeholder: '2,800' },
+    { id: 'impressions', label: 'Impressions', placeholder: '15,000' },
+    { id: 'engagement_rate', label: 'Engagement Rate %', placeholder: '4.2' }
+  ],
+  twitter: [
+    { id: 'followers', label: 'Followers', placeholder: '3,200' },
+    { id: 'impressions', label: 'Impressions', placeholder: '18,000' },
+    { id: 'engagement_rate', label: 'Engagement Rate %', placeholder: '2.8' }
+  ],
+  meta_ads: [
+    { id: 'spend', label: 'Total Ad Spend (₹)', placeholder: '18,000' },
+    { id: 'clicks', label: 'Link Clicks', placeholder: '1,450' },
+    { id: 'ctr', label: 'CTR %', placeholder: '2.4' },
+    { id: 'roas', label: 'ROAS', placeholder: '11.7' },
+    { id: 'conversions', label: 'Conversions', placeholder: '84' }
+  ]
+};
+
+const PLATFORM_NAMES = {
+  instagram:'Instagram', youtube:'YouTube', facebook:'Facebook',
+  linkedin:'LinkedIn', twitter:'Twitter/X', meta_ads:'Meta Ads'
+};
+const PLATFORM_ICONS = {
+  instagram:'📸', youtube:'▶️', facebook:'👥',
+  linkedin:'💼', twitter:'🐦', meta_ads:'📢'
+};
+
+function buildStatsFields() {
+  const container = document.getElementById('stats-fields-container');
+  container.innerHTML = [...selectedPlatforms].map(p => `
+    <div class="platform-fields visible" id="pfields-${p}">
+      <div class="platform-fields-header">${PLATFORM_ICONS[p]} ${PLATFORM_NAMES[p]}</div>
+      <div class="fields-grid">
+        ${(PLATFORM_FIELDS[p] || []).map(f => `
+          <div class="form-group" ${f.id === 'top_post' || f.id === 'top_video' ? 'style="grid-column:1/-1"' : ''}>
+            <label class="form-label">${f.label}</label>
+            <input type="text" class="form-input" id="pf-${p}-${f.id}" placeholder="${f.placeholder}"/>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function generateReport() {
+  // Build platforms_data
+  const platforms_data = {};
+  for (const p of selectedPlatforms) {
+    platforms_data[p] = { enabled: true };
+    for (const f of (PLATFORM_FIELDS[p] || [])) {
+      const el = document.getElementById(`pf-${p}-${f.id}`);
+      if (el) platforms_data[p][f.id] = el.value.trim();
     }
   }
 
-  requestAnimationFrame(draw);
-}
-draw();
-
-// ── Scroll Reveal ──
-const observer=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible')}});
-},{threshold:0.1});
-document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
-
-// ── Animated counters ──
-const counterObserver=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{
-    if(e.isIntersecting){
-      const el=e.target;
-      const target=+el.dataset.count;
-      let current=0;const step=target/60;
-      const interval=setInterval(()=>{
-        current=Math.min(current+step,target);
-        el.textContent=target>=1000?Math.floor(current).toLocaleString():Math.floor(current);
-        if(current>=target){clearInterval(interval);el.textContent=target>=1000?target.toLocaleString():target+(target===5?'h':'+');}
-      },25);
-      counterObserver.unobserve(el);
-    }
-  });
-},{threshold:0.5});
-document.querySelectorAll('[data-count]').forEach(el=>counterObserver.observe(el));
-
-// ── Animate bars on scroll ──
-const barObserver=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{
-    if(e.isIntersecting){
-      e.target.querySelectorAll('.bar-fill').forEach(bar=>{
-        const w=bar.style.width;bar.style.width='0';
-        setTimeout(()=>{bar.style.width=w},100);
+  // Get or create client
+  let clientId = document.getElementById('w-client-select').value;
+  if (!clientId) {
+    const name = document.getElementById('w-client-name').value.trim();
+    if (!name) { toast('Client name required', 'error'); return; }
+    try {
+      const data = await api('/clients/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          email: document.getElementById('w-client-email').value,
+          industry: document.getElementById('w-client-industry').value,
+          platforms: [...selectedPlatforms]
+        })
       });
+      clientId = data.client.id;
+      clients.push(data.client);
+    } catch (err) { toast('Failed to create client: ' + err.message, 'error'); return; }
+  }
+
+  loading(true, 'Generating Report…', 'Claude AI is analyzing your data — this takes ~15 seconds');
+
+  try {
+    const data = await api('/reports/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        client_id: clientId,
+        period_start: document.getElementById('w-period-start').value,
+        period_end: document.getElementById('w-period-end').value,
+        platforms_data,
+        notes: document.getElementById('w-notes').value,
+        template: 'dark_luxury'
+      })
+    });
+
+    loading(false);
+    currentReportId = data.report.id;
+    workspace.reports_used = (workspace.reports_used || 0) + 1;
+    updateSidebar();
+    setWizardStep(4);
+    renderReportPreview(data.report);
+    toast('Report generated! 🎉', 'success');
+  } catch (err) {
+    loading(false);
+    if (err.message.includes('limit') || err.message.includes('upgrade')) {
+      toast('Free report used. Upgrade to create more!', 'error');
+      openUpgradeModal();
+    } else {
+      toast('Generation failed: ' + err.message, 'error');
     }
-  });
-},{threshold:0.3});
-document.querySelectorAll('.chart-box').forEach(el=>barObserver.observe(el));
+  }
+}
+
+function renderReportPreview(report) {
+  const ai = report.ai_output || {};
+  const client = report.clients || report.client || {};
+  const gradeClass = (ai.performance_grade || 'B').replace('+', '\\+');
+  const gradeColors = {'A+':'var(--green)','A':'var(--green)','B+':'var(--gold)','B':'var(--gold)','C':'var(--red)','Needs Work':'var(--red)'};
+  const gc = gradeColors[ai.performance_grade] || 'var(--gold)';
+
+  document.getElementById('report-preview-container').innerHTML = `
+    <div class="report-actions">
+      ${report.pdf_url ? `<a href="${report.pdf_url}" target="_blank" class="btn-action gold">↓ Download PDF</a>` : ''}
+      <button class="btn-action outline" onclick="openSendModal('${report.id}')">✉️ Send to Client</button>
+      <button class="btn-action outline" onclick="showPage('dashboard')">← Dashboard</button>
+    </div>
+
+    <div class="report-view-header">
+      <div>
+        <div class="report-view-client">${client.name || 'Report'}</div>
+        <div class="report-view-meta">${report.period_start} – ${report.period_end} · ${client.industry || ''}</div>
+      </div>
+      <div style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;border:1.5px solid ${gc};color:${gc};background:transparent">
+        ${ai.performance_grade || 'B'}
+      </div>
+    </div>
+
+    <div class="ai-summary-box">
+      <div class="ai-summary-label">AI Performance Summary</div>
+      <div class="ai-headline">${ai.headline || ''}</div>
+      <div class="ai-text">${ai.executive_summary || ''}</div>
+    </div>
+
+    <div class="report-grid">
+      <div class="report-section-card">
+        <div class="rsc-label">What Worked ✓</div>
+        <div class="rsc-list">
+          ${(ai.what_worked || []).map(w => `<div class="rsc-item"><div class="rsc-dot dot-green">✓</div><span>${w}</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="report-section-card">
+        <div class="rsc-label">Areas to Improve ↗</div>
+        <div class="rsc-list">
+          ${(ai.what_to_improve || []).map(w => `<div class="rsc-item"><div class="rsc-dot dot-gold">↗</div><span>${w}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="goals-row">
+      ${(ai.next_month_goals || []).slice(0,3).map((g, i) => `
+        <div class="goal-card2">
+          <div class="goal-num2">0${i+1}</div>
+          <div class="goal-text2">${g}</div>
+        </div>`).join('')}
+    </div>
+
+    ${ai.closing_note ? `<div class="closing-card"><div class="closing-italic">"${ai.closing_note}"</div></div>` : ''}
+  `;
+}
+
+function viewReport(id) {
+  const report = reports.find(r => r.id === id);
+  if (!report) return;
+  currentReportId = id;
+  showPage('create');
+  setTimeout(() => {
+    setWizardStep(4);
+    renderReportPreview(report);
+  }, 50);
+}
+
+async function deleteReport(id) {
+  if (!confirm('Delete this report?')) return;
+  try {
+    await api(`/reports/${id}`, { method: 'DELETE' });
+    toast('Report deleted', 'success');
+    loadDashboard();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── SEND REPORT ──
+function openSendModal(reportId) {
+  currentReportId = reportId;
+  const report = reports.find(r => r.id === reportId);
+  if (report?.clients?.email) document.getElementById('send-email').value = report.clients.email;
+  if (report?.clients?.name) document.getElementById('send-client-name').value = report.clients.name;
+  openModal('modal-send-report');
+}
+
+async function sendReport() {
+  const email = document.getElementById('send-email').value.trim();
+  const clientName = document.getElementById('send-client-name').value.trim();
+  if (!email) { toast('Email required', 'error'); return; }
+  loading(true, 'Sending Report…', 'Delivering the PDF to your client');
+  try {
+    await api(`/reports/${currentReportId}/send`, {
+      method: 'POST',
+      body: JSON.stringify({ email, client_name: clientName })
+    });
+    loading(false);
+    closeModal('modal-send-report');
+    toast('Report sent successfully! ✉️', 'success');
+    loadDashboard();
+  } catch(err) {
+    loading(false);
+    toast('Send failed: ' + err.message, 'error');
+  }
+}
+
+// ── SETTINGS ──
+function loadSettings() {
+  if (!workspace) return;
+  document.getElementById('set-agency-name').value = workspace.agency_name || '';
+  document.getElementById('set-brand-color').value = workspace.brand_color || '#C9A84C';
+  document.getElementById('set-brand-color-hex').value = workspace.brand_color || '#C9A84C';
+  document.getElementById('set-tagline').value = workspace.tagline || '';
+  if (workspace.logo_url) {
+    document.getElementById('logo-preview').style.display = 'block';
+    document.getElementById('logo-img').src = workspace.logo_url;
+  }
+}
+
+document.getElementById('set-brand-color').addEventListener('input', e => {
+  document.getElementById('set-brand-color-hex').value = e.target.value;
+});
+
+async function saveSettings() {
+  try {
+    const data = await api('/workspace/update', {
+      method: 'PUT',
+      body: JSON.stringify({
+        agency_name: document.getElementById('set-agency-name').value,
+        brand_color: document.getElementById('set-brand-color').value,
+        tagline: document.getElementById('set-tagline').value
+      })
+    });
+    workspace = data.workspace;
+    updateSidebar();
+    toast('Settings saved!', 'success');
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function uploadLogo() {
+  const file = document.getElementById('logo-input').files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('logo', file);
+  loading(true, 'Uploading Logo…', '');
+  try {
+    const res = await fetch(`${API}/workspace/logo`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    workspace.logo_url = data.logo_url;
+    document.getElementById('logo-preview').style.display = 'block';
+    document.getElementById('logo-img').src = data.logo_url;
+    loading(false);
+    toast('Logo uploaded!', 'success');
+  } catch(err) {
+    loading(false);
+    toast(err.message, 'error');
+  }
+}
+
+// ── BILLING / CASHFREE ──
+function openUpgradeModal() { openModal('modal-upgrade'); selectUpgradePlan('growth'); }
+
+function selectUpgradePlan(plan) {
+  selectedPlan = plan;
+  document.querySelectorAll('.upgrade-plan').forEach(el => el.classList.remove('selected'));
+  document.getElementById(`uplan-${plan}`)?.classList.add('selected');
+}
+
+async function initiatePayment() {
+  loading(true, 'Creating Order…', 'Setting up your payment');
+  try {
+    const data = await api('/billing/create-order', {
+      method: 'POST',
+      body: JSON.stringify({ plan: selectedPlan })
+    });
+    loading(false);
+    closeModal('modal-upgrade');
+
+    // Launch Cashfree checkout
+    const cashfree = Cashfree({ mode: 'sandbox' }); // Change to 'production' when live
+    const checkoutOptions = {
+      paymentSessionId: data.payment_session_id,
+      returnUrl: `${window.location.origin}/app/billing/verify?order_id=${data.order_id}&plan=${selectedPlan}`
+    };
+    cashfree.checkout(checkoutOptions).then(result => {
+      if (result.error) {
+        toast('Payment failed: ' + result.error.message, 'error');
+      }
+    });
+  } catch(err) {
+    loading(false);
+    toast('Payment setup failed: ' + err.message, 'error');
+  }
+}
+
+// Handle return from Cashfree payment (verify on page load if order_id in URL)
+async function checkPaymentReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get('order_id');
+  const plan = params.get('plan');
+  if (orderId && plan) {
+    window.history.replaceState({}, '', window.location.pathname);
+    loading(true, 'Verifying Payment…', 'Please wait while we confirm your payment');
+    try {
+      await api('/billing/verify', {
+        method: 'POST',
+        body: JSON.stringify({ order_id: orderId, plan })
+      });
+      const me = await api('/auth/me');
+      workspace = me.workspace;
+      updateSidebar();
+      loading(false);
+      toast(`🎉 You're on the ${plan} plan! Reports unlocked.`, 'success');
+    } catch(err) {
+      loading(false);
+      toast('Payment verification failed. Contact support.', 'error');
+    }
+  }
+}
+
+// ── STARTUP ──
+if (token) {
+  initApp().then(checkPaymentReturn);
+} else {
+  showScreen('login');
+}
 </script>
 </body>
 </html>
